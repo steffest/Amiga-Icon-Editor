@@ -1,0 +1,37 @@
+#iconeditor {
+    left: 64px;
+    top: 56px;
+    width: 480px;
+    height: 570px;
+    position: absolute;
+}
+
+#iconeditor canvas#overlay{
+    position: absolute;
+    opacity: 0;
+}
+
+.shift #iconeditor canvas:hover{
+    cursor: none;
+}
+
+body.hovericonEditorCanvas #iconeditor #overlay{
+    opacity: 1;
+}
+
+body.hovericonEditorCanvas.shift #iconeditor #overlay{
+    opacity: 0;
+}
+
+#iconeditorcanvas{
+    position: absolute;
+    top: 88px;
+    left: 0;
+    right: 0;
+    height: 480px;
+}
+
+#iconeditorcanvas canvas{
+    width: 100%;
+    height: auto;
+}

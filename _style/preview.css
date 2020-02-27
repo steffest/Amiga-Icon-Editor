@@ -1,0 +1,63 @@
+#previews{
+    top: 56px;
+    left: 544px;
+}
+
+#previews .panel{
+    position: relative;
+    margin: 8px;
+    overflow: hidden;
+}
+
+#previews .panel .frame{
+    position: relative;
+    z-index: 10;
+}
+
+#previews .panel canvas,
+#previews .panel .button{
+    position: absolute;
+}
+
+#previews .panel canvas.zoom150{
+    top: -2px;
+    left: -35px;
+}
+
+#previews .panel canvas.zoom200{
+    top: -30px;
+    left: -30px;
+}
+
+#previews .panel canvas.zoom300{
+    top: -96px;
+    left: -60px;
+}
+
+#previews .panel canvas.zoom400{
+    top: -157px;
+    left: -70px;
+}
+
+#previews .panel .button{
+    z-index: 20;
+    top: 0;
+    left: 20px;
+    width: 14px;
+    height: 14px;
+    padding: 0;
+    line-height: 14px;
+    background-color: #658FC3;
+    color: white;
+}
+
+#previews .panel .button:hover{
+    background-color: white;
+    border-color: white;
+    color: black;
+}
+
+#previews .panel .button.minus{
+    left: 36px;
+    line-height: 12px;
+}
