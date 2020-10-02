@@ -1,9 +1,5 @@
 #iconeditor {
-    left: 64px;
-    top: 56px;
-    width: 480px;
-    height: 570px;
-    position: absolute;
+
 }
 
 #iconeditor canvas#overlay{

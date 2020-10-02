@@ -15,14 +15,17 @@ var Iconlist = function(){
 		scrollBox.height = 550;
 		
 		container.appendChild(scrollBox);
-		
 
-		
-
-		UI.mainContainer.appendChild(container);
+		UI.addPanelToLayout(container,{
+			name: "IconList",
+			position: "left",
+			resize: "vertical",
+			width: 60,
+			order: 2
+		});
 	};
 	
-	me.loadIcon = function(url,name){
+	me.loadIcon = function(url,name,next){
 
 		var index = icons.length;
 		var icon = {};
@@ -34,14 +37,36 @@ var Iconlist = function(){
 			
 			var file = BinaryStream(url.slice(0,url.byteLength),true);
 			file.goto(0);
-			icon.icon = Icon.parse(file,true);
-			icon.canvas = Icon.getImage(icon.icon);
-			var icon2 = {
-				canvas: Icon.getImage(icon.icon,1)
+			icon.icon = Icon.parse(file,function(){
+				// decoding of PNG icons is Async
+				if (icon.icon.PNGIcon){
+					parsed();
+				}
+			});
+
+			var parsed = function(){
+				icon.canvas = Icon.getImage(icon.icon);
+				var icon2 = {
+					canvas: Icon.getImage(icon.icon,1)
+				};
+
+				createItem(icon);
+				createItem(icon2);
+
+				if (next) next({
+					inactive: icon,
+					active: icon2
+				});
 			};
-			
-			createItem(icon);
-			createItem(icon2);
+
+			if (icon.icon.PNGIcon){
+
+			}else{
+				parsed();
+			}
+
+
+
 			
 			
 		}else{
@@ -54,12 +79,18 @@ var Iconlist = function(){
 				iCtx.drawImage(image,0,0);
 				icon.canvas = iCanvas;
 				createItem(icon);
+				if (next) next(icon);
 			};
+			image.setAttribute('crossOrigin', '');
 			image.src = url;
 		}
 	};
 	
 	function createItem(icon){
+		if (!icon.canvas){
+			console.warn("can't create icon - no canvas");
+			return;
+		}
 		var item = $div("item");
 		
 		var aspectRatio = icon.canvas.width/icon.canvas.height;

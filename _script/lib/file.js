@@ -172,9 +172,32 @@ function BinaryStream(arrayBuffer, bigEndian){
 
     obj.writeBits = function(bits,position){
         setIndex(position);
-		var b = bits2Int(bits);
-        this.dataView.setUint8(this.index,b);
-        this.index++;
+        if (bits.length>8){
+			var bts = [];
+			var bindex = 0;
+			var _this = this;
+
+			function write() {
+				if (bts.length){
+					var b = bits2Int(bts);
+					_this.dataView.setUint8(_this.index,b);
+					_this.index++;
+					bts = [];
+				}
+			}
+
+			while (bts.length<8 && bindex<bits.length){
+				bts.push(bits[bindex]);
+				bindex++;
+				if (bts.length>=8) write();
+			}
+			write();
+
+		}else{
+			var b = bits2Int(bits);
+			this.dataView.setUint8(this.index,b);
+			this.index++;
+		}
 	};
 
 	obj.clear = function(length){

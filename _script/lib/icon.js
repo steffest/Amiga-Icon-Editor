@@ -55,28 +55,94 @@ var Icon = function(){
 		[255,169,151]
 	];
 
-	me.parse = function(file){
+	me.parse = function(file,next){
 		var icon = {};
 		icon.info = {};
 
-		file.goto(2);
-		icon.version = file.readWord();
-		icon.nextGadget = file.readDWord();
-		icon.leftEdge = file.readWord();
-		icon.topEdge = file.readWord();
-		icon.width = file.readWord();
-		icon.height = file.readWord();
-		icon.flags = file.readWord();
-		icon.activation = file.readWord();
-		icon.gadgetType = file.readWord();
-		icon.gadgetRender = file.readDWord();
-		icon.selectRender = file.readDWord();
-		icon.gadgetText = file.readDWord(); //Unused. Usually 0.
-		icon.mutualExclude = file.readDWord(); //Unused. Usually 0.
-		icon.specialInfo = file.readDWord(); //Unused. Usually 0.
-		icon.gadgetID = file.readWord(); //Unused. Usually 0.
-		icon.userData = file.readDWord(); // Used for icon revision. 0 for OS 1.x icons. 1 for OS 2.x/3.x icons.
-		icon.type = file.readUbyte(); /*
+		var magicBytes = file.readDWord(0);
+		var PNGID = 2303741511;
+		if (magicBytes === PNGID){
+			//DualPNG
+			console.log("DualPNG icon");
+			icon.PNGIcon = {
+				canvas:[]
+			};
+
+			// look for second PNG
+			file.goto(8);
+			var found = false;
+			var imageCount = 1;
+			var buffer2;
+
+			// read next chunk size
+			var dw = file.readDWord();
+			while (!file.isEOF(4)){
+				// 4 byte Chunch Type ID and 4 byte CRC is not included
+			    dw += 8;
+				file.jump(dw);
+
+				// read next chunk size or next PNG ID
+				dw = file.readDWord();
+				if (dw === PNGID){
+					found = true;
+					break;
+				}
+			}
+			if (found){
+				imageCount=2;
+				buffer2 = file.buffer.slice(file.index-4);
+			}
+
+			var done=function(){
+				if (next){
+					if (icon.PNGIcon.canvas.length>(imageCount-1)){
+						next(icon);
+					}
+				}
+			};
+
+			function toCanvas(buffer,index){
+				var blob = new Blob( [ buffer], { type: "image/png" } );
+				var urlCreator = window.URL || window.webkitURL;
+				var imageUrl = urlCreator.createObjectURL( blob );
+				var img = new Image();
+				img.onload = function(){
+					console.error("loaded");
+					icon.width = img.width;
+					icon.height = img.height;
+					var canvas = document.createElement("canvas");
+					canvas.width = img.width;
+					canvas.height = img.height;
+					canvas.getContext("2d").drawImage(img,0,0);
+					icon.PNGIcon.canvas[index] = canvas;
+					done();
+				};
+				img.src = imageUrl;
+			}
+
+			toCanvas(file.buffer,0);
+			if (imageCount>1) toCanvas(buffer2,1);
+
+		}else{
+			//Amiga Icon
+			file.goto(2);
+			icon.version = file.readWord();
+			icon.nextGadget = file.readDWord();
+			icon.leftEdge = file.readWord();
+			icon.topEdge = file.readWord();
+			icon.width = file.readWord();
+			icon.height = file.readWord();
+			icon.flags = file.readWord();
+			icon.activation = file.readWord();
+			icon.gadgetType = file.readWord();
+			icon.gadgetRender = file.readDWord();
+			icon.selectRender = file.readDWord();
+			icon.gadgetText = file.readDWord(); //Unused. Usually 0.
+			icon.mutualExclude = file.readDWord(); //Unused. Usually 0.
+			icon.specialInfo = file.readDWord(); //Unused. Usually 0.
+			icon.gadgetID = file.readWord(); //Unused. Usually 0.
+			icon.userData = file.readDWord(); // Used for icon revision. 0 for OS 1.x icons. 1 for OS 2.x/3.x icons.
+			icon.type = file.readUbyte(); /*
 			A type of icon:
 				1 – disk or volume.
 				2 – drawer (folder).
@@ -87,79 +153,82 @@ var Icon = function(){
 				7 – Kickstart ROM image.
 				8 – an appicon (placed on the desktop by application).
 		*/
-		icon.info.type = getIconType(icon.type);
+			icon.info.type = getIconType(icon.type);
 
-		icon.padding = file.readUbyte();
-		icon.hasDefaultTool = file.readDWord();
-		icon.hasToolTypes = file.readDWord();
-		icon.currentX = file.readDWord();
-		icon.currentY = file.readDWord();
-		icon.hasDrawerData = file.readDWord(); // unused
-		icon.hasToolWindow = file.readDWord(); // I don't think this is used somewhere?
-		icon.stackSize = file.readDWord();
+			icon.padding = file.readUbyte();
+			icon.hasDefaultTool = file.readDWord();
+			icon.hasToolTypes = file.readDWord();
+			icon.currentX = file.readDWord();
+			icon.currentY = file.readDWord();
+			icon.hasDrawerData = file.readDWord(); // unused
+			icon.hasToolWindow = file.readDWord(); // I don't think this is used somewhere?
+			icon.stackSize = file.readDWord();
 
-		// total size 78 bytes
+			// total size 78 bytes
 
-		var offset = 78;
+			var offset = 78;
 
-		var drawerData = {};
-		if (icon.hasDrawerData){
-			// skip for now
-			offset += 56;
-		}
-		icon.drawerData = drawerData;
-
-
-		icon.img = readIconImage(file,offset);
-
-		if (icon.selectRender) icon.img2 = readIconImage(file);
-
-		if (icon.hasDefaultTool) icon.defaultTool = readText(file);
-
-		icon.toolTypes = [];
-		if (icon.hasToolTypes){
-			icon.toolTypeCount =  file.readDWord();
-			if (icon.toolTypeCount){
-				icon.toolTypeCount = (icon.toolTypeCount/4) - 1; // seriously ... who invents this stuff? ...
-
-				for (var i = 0; i< icon.toolTypeCount; i++){
-					icon.toolTypes.push(readText(file));
-				}
+			var drawerData = {};
+			if (icon.hasDrawerData){
+				// skip for now
+				offset += 56;
 			}
-		}
-
-		if (icon.hasToolWindow) icon.hasToolWindow = readText(file);
-
-		if (icon.hasDrawerData && icon.userData){
-			// OS2.x+ drawers
-
-			icon.drawerData2 = {};
-			icon.drawerData2.flags = file.readDWord();
-			icon.drawerData2.ViewModes = file.readWord();
-		}
+			icon.drawerData = drawerData;
 
 
-		if (file.index<file.length){
-			// we're not at the end of the file
-			// check for FORM ICON file
+			icon.img = readIconImage(file,offset);
 
-			console.log("checking for IFF structure");
+			if (icon.selectRender) icon.img2 = readIconImage(file);
 
-			var id = file.readString(4);
-			if (id === "FORM"){
+			if (icon.hasDefaultTool) icon.defaultTool = readText(file);
 
-				console.log("IFF file found");
+			icon.toolTypes = [];
+			if (icon.hasToolTypes){
+				icon.toolTypeCount =  file.readDWord();
+				if (icon.toolTypeCount){
+					icon.toolTypeCount = (icon.toolTypeCount/4) - 1; // seriously ... who invents this stuff? ...
 
-				var size = file.readDWord();
-				if ((size + 8) <= file.length){
-					// the size check isn't always exact for images?
-					var format = file.readString(4);
-
-					icon.colorIcon = readIFFICON(file);
+					for (var i = 0; i< icon.toolTypeCount; i++){
+						icon.toolTypes.push(readText(file));
+					}
 				}
 			}
 
+			if (icon.hasToolWindow) icon.hasToolWindow = readText(file);
+
+			if (icon.hasDrawerData && icon.userData){
+				// OS2.x+ drawers
+
+				icon.drawerData2 = {};
+				icon.drawerData2.flags = file.readDWord();
+				icon.drawerData2.ViewModes = file.readWord();
+			}
+
+
+			if (file.index<file.length){
+				// we're not at the end of the file
+				// check for FORM ICON file
+
+				console.log("checking for IFF structure");
+
+				var id = file.readString(4);
+				if (id === "FORM"){
+
+					console.log("IFF file found");
+
+					var size = file.readDWord();
+					if ((size + 8) <= file.length){
+						// the size check isn't always exact for images?
+						var format = file.readString(4);
+
+						icon.colorIcon = readIFFICON(file);
+					}
+				}
+
+			}
 		}
+
+
 
 		return icon;
 	};
@@ -173,7 +242,7 @@ var Icon = function(){
 
 	me.inspect = function(file){
 		var result = "icon";
-		var info = me.parse(file,false);
+		var info = me.parse(file);
 
 		return result;
 	};
@@ -181,8 +250,11 @@ var Icon = function(){
 	me.getImage = function(icon,index){
 		index = index || 0;
 
-		if (icon.colorIcon){
-			return me.toCanvas(icon.colorIcon,index);
+		if (icon.colorIcon) {
+			return me.toCanvas(icon.colorIcon, index);
+		}else if (icon.PNGIcon){
+			index = Math.min(index,icon.PNGIcon.canvas.length-1);
+			return icon.PNGIcon.canvas[index];
 		}else{
 			var img = index?icon.img2:icon.img;
 			if (img){
@@ -202,7 +274,7 @@ var Icon = function(){
 	me.handle = function(file,action){
 		console.log(action);
 		if (action === "show"){
-			var icon = me.parse(file,true);
+			var icon = me.parse(file);
 			var canvas = me.getImage(icon,0);
 			if (AdfViewer) AdfViewer.showImage(canvas);
 		}
@@ -250,6 +322,317 @@ var Icon = function(){
 
 		return canvas;
 	};
+
+	me.create = function(width,height){
+		var icon = {};
+        icon.version = 1;
+        icon.nextGadget = 0;
+        icon.leftEdge = 0;
+        icon.topEdge = 0;
+        icon.width = width;
+        icon.height = height;
+
+        // this is the width and height of the simple icon, NOT of the ColorIcon
+		icon.width = 8;
+		icon.height = 8;
+
+
+        icon.flags = 6; // according docs this is usually 5? 6 seems to be more current.
+        icon.activation = 3;
+        icon.gadgetType = 1;
+        icon.gadgetRender = 1;
+        icon.selectRender = 1;
+        icon.gadgetText = 0;
+        icon.mutualExclude = 0;
+        icon.specialInfo = 0;
+        icon.gadgetID = 0;
+        icon.userData = 1; // OS 2.x/3.x icon - use 0 for 1.X icons
+        icon.type = 4; // project
+
+        icon.padding = 0;
+        icon.hasDefaultTool = 0;
+        icon.hasToolTypes = 0;
+        icon.currentX = 0;
+        icon.currentY = 0;
+        icon.hasDrawerData = 0;
+        icon.hasToolWindow = 0;
+        icon.stackSize = 8192;
+
+		// default Classic Icon
+		var classicWidth = 8;
+		var classicHeight = 8;
+
+        icon.img = {
+            leftEdge: 0,
+            topEdge: 0,
+            width: classicWidth,
+            height: classicHeight,
+            depth: 1,
+        	hasimageData: 1,
+            planePick: 1,
+            planeOnOff: 0,
+            nextImage: 0,
+            pixels: []
+		};
+
+        icon.img2 = Object.assign({},icon.img);
+        icon.img2.pixels = [];
+
+		for (var i = 0;i<classicHeight; i++){
+			for (var j = 0;j<classicWidth; j++){
+				var index = (i*classicWidth)+j;
+				var value = 0;
+				if (i===0 || j===0 || i===classicHeight-1 || j===classicWidth-1){
+					value = 1;
+				}
+				icon.img.pixels[index] = value;
+				icon.img2.pixels[index] = 1;
+			}
+		}
+
+        icon.colorIcon = {
+			width: width,
+			height: height,
+			flags:0,// ?
+			aspectRatio: 17, //?
+			MaxPaletteSize:2,
+			states:[
+				{
+					transparentIndex: 0,
+					NumColors: 2,
+					flags:3,// ? Bit 1: transparent color exists - Bit 2: Palette Exists
+					imageCompression:0,
+					paletteCompression:0,
+					depth:8, // number of bits to store each pixel
+					imageSize: width*height,
+					paletteSize: 6, // num of colors * 3
+					pixels: [],
+					palette: [[0,0,200],[0,200,0]]
+				}
+			]
+		};
+
+		for (i = 0;i<height; i++){
+			for (var j = 0;j<height; j++){
+				icon.colorIcon.states[0].pixels.push(1);
+			}
+		}
+
+        return icon;
+	};
+
+	// creates an ArrayBuffer with the binary data of the Icon;
+    me.write = function(icon){
+		var fileSize = 2 + 76;
+
+		var bitPlanes = icon.img.depth;
+
+		var bitWidth = Math.ceil(icon.img.width/16) * 16;
+		var bitSize = (icon.img.height * bitWidth) * bitPlanes;
+        fileSize += 20 + (bitSize/8);
+
+		bitWidth = Math.ceil(icon.img2.width/16) * 16;
+		var bitSize = (icon.img2.height * bitWidth) * bitPlanes;
+		fileSize += 20 + (bitSize/8);
+
+		//icon.colorIcon = 0;
+
+		if (icon.colorIcon){
+			generateColorIconData(icon.colorIcon);
+			fileSize += icon.colorIcon.byteSize + 8; // 8 = "FORM" + Size Dword;
+		}
+
+        if (typeof module !== 'undefined' && module.exports){
+            //var BinaryStream  = require('./file.js');
+		}
+
+		var file = BinaryStream(new ArrayBuffer(fileSize),true);
+        console.log("File is " + fileSize + " bytes");
+
+        icon.currentX = 128 << 24; // not sure but this seems to position the icon automatically in the window?
+        icon.currentY = 128 << 24;
+
+        file.writeUbyte(227);
+        file.writeUbyte(16);
+        file.writeWord(icon.version);
+        file.writeDWord(icon.nextGadget);
+        file.writeWord(icon.leftEdge);
+        file.writeWord(icon.topEdge);
+        file.writeWord(icon.width);
+        file.writeWord(icon.height);
+        file.writeWord(icon.flags);
+        file.writeWord(icon.activation);
+        file.writeWord(icon.gadgetType);
+        file.writeDWord(icon.gadgetRender);
+        file.writeDWord(icon.selectRender);
+        file.writeDWord(icon.gadgetText);
+        file.writeDWord(icon.mutualExclude);
+        file.writeDWord(icon.specialInfo);
+        file.writeWord(icon.gadgetID);
+        file.writeDWord(icon.userData);
+        file.writeUbyte(icon.type);
+        file.writeUbyte(icon.padding);
+        file.writeDWord(icon.hasDefaultTool);
+        file.writeDWord(icon.hasToolTypes);
+
+        file.writeDWord(icon.currentX);
+        file.writeDWord(icon.currentY);
+        file.writeDWord(icon.hasDrawerData);
+        file.writeDWord(icon.hasToolWindow);
+        file.writeDWord(icon.stackSize);
+
+        // write first image
+        writeImage(icon.img,1);
+        writeImage(icon.img2,2);
+
+		function writeImage(img,index){
+			file.writeWord(img.leftEdge);
+			file.writeWord(img.topEdge);
+			file.writeWord(img.width);
+			file.writeWord(img.height);
+			file.writeWord(img.depth);
+			file.writeDWord(img.hasimageData);
+			file.writeUbyte(img.planePick);
+			file.writeUbyte(img.planeOnOff);
+			file.writeDWord(img.nextImage);
+
+			for (var bitPlane = 0; bitPlane< bitPlanes; bitPlane++){
+				var pixelIndex = 0;
+				for (var i = 0, max = img.height; i<max; i++){
+					var bits = [];
+					var bitWidth = Math.ceil(img.width/16) * 16;
+
+					for (var j = 0, maxj = bitWidth; j<maxj; j++){
+						var colorIndex = img.pixels[pixelIndex];
+						var pixel = 0;
+						if (bitPlane === 0) pixel = colorIndex%2 === 1;
+						if (bitPlane === 1) pixel = (colorIndex === 2) || (colorIndex === 3) || (colorIndex === 6) || (colorIndex === 7);
+						if (bitPlane === 2) pixel = (colorIndex === 4) || (colorIndex === 5) || (colorIndex === 6) || (colorIndex === 7);
+						bits.push(pixel?1:0);
+						pixelIndex++;
+					}
+
+					file.writeBits(bits);
+
+					//var bits = [1,0,0,0,0,0,0,1];
+					//if (i===0 || i===7) bits = [1,1,1,1,1,1,1,1];
+
+					//if (index===2){
+					//var bits = [0,1,1,1,1,1,1,0];
+					//if (i===0 || i===7) bits = [1,0,1,0,1,0,1,0];
+					//}
+
+					//file.writeBits(bits);
+
+					// padding to 16 bits
+					//file.writeUbyte(0);
+				}
+			}
+		}
+
+
+		if (icon.colorIcon){
+
+			var writeIconState = function(state){
+
+				//console.log(state);
+				file.writeString("IMAG");
+
+				// aparently this should be even?
+				file.writeDWord(state.size);
+
+				file.writeUbyte(state.transparentIndex);
+				file.writeUbyte(state.NumColors-1);
+				file.writeUbyte(state.flags);
+				file.writeUbyte(state.imageCompression);
+				file.writeUbyte(state.paletteCompression);
+				file.writeUbyte(state.depth);
+				file.writeWord(state.imageSize-1);
+				file.writeWord(state.paletteSize-1);
+
+				// then all pixels as UByte
+				for (var i = 0; i<state.imageSize; i++){
+					file.writeUbyte(state.pixels[i]);
+				}
+
+				// then the palette
+				if (state.palette){
+					for (i = 0; i<state.paletteSize/3; i++){
+						//console.log(i);
+						//console.log(state.palette[i]);
+						file.writeUbyte(state.palette[i][0]);
+						file.writeUbyte(state.palette[i][1]);
+						file.writeUbyte(state.palette[i][2]);
+					}
+				}
+
+				// padding byte if needed
+				if (state.hasPaddingByte){
+					console.error("paddingbyte");
+					file.writeByte(0);
+				}
+
+			};
+
+			file.writeString("FORM");
+			file.writeDWord(icon.colorIcon.byteSize);
+			file.writeString("ICON");
+
+			file.writeString("FACE");
+			file.writeDWord(6);
+			file.writeUbyte(icon.colorIcon.width-1);
+			file.writeUbyte(icon.colorIcon.height-1);
+			file.writeUbyte(icon.colorIcon.flags);
+			file.writeUbyte(icon.colorIcon.aspectRatio);
+			file.writeWord(icon.colorIcon.MaxPaletteSize-1);
+
+			writeIconState(icon.colorIcon.states[0]);
+			if (icon.colorIcon.states[1]) writeIconState(icon.colorIcon.states[1]);
+
+
+		}else{
+			console.log("skipping Coloricon");
+		}
+
+		return file.buffer;
+
+    };
+
+    function generateColorIconData(colorIcon){
+		var size = 18; // main header
+		if (colorIcon.states[0]){
+			colorIcon.states[0].size = (10 + colorIcon.states[0].imageSize +  colorIcon.states[0].paletteSize);
+
+			// apparently this should be even?
+			if (colorIcon.states[0].size%2 === 1){
+				colorIcon.states[0].size++;
+				colorIcon.states[0].hasPaddingByte = true;
+			}else{
+				colorIcon.states[0].hasPaddingByte = false;
+			}
+
+			size += colorIcon.states[0].size + 8; // 8 = "IMAG" + size Dword
+		}
+
+		if (colorIcon.states[1]){
+			colorIcon.states[1].size = (10 + colorIcon.states[1].imageSize);
+			if (colorIcon.states[1].palette){
+				colorIcon.states[1].size += colorIcon.states[1].paletteSize;
+			}
+
+			if (colorIcon.states[1].size%2 === 1){
+				colorIcon.states[1].size++;
+				colorIcon.states[1].hasPaddingByte = true;
+			}else{
+				colorIcon.states[1].hasPaddingByte = false;
+			}
+			size += colorIcon.states[1].size + 8; // 8 = "IMAG" + size Dword
+		}
+
+		colorIcon.byteSize = size;
+
+		console.log("state size = " + size);
+	}
 
 	function readIconImage(file,offset){
 		if (offset) file.goto(offset);
@@ -505,9 +888,9 @@ var Icon = function(){
 		return iconTypes[type] ||"unknown";
 	}
 
+	me.MUIPalette = MUIPalette;
 
 	if (typeof FileType !== "undefined") FileType.register(me);
-
 	return me;
 
 }();

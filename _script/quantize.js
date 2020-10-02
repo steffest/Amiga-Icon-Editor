@@ -6,34 +6,62 @@ onmessage = function(e)
 	var MaxRecursionDepth = e.data.MaxRecursionDepth;
 	var BitsPerColor = e.data.BitsPerColor;
 	var ColorCount = e.data.ColorCount;
+	var transparentColor = e.data.transparentColor;
 
-	var ColorCube = CreateColorCube(CanvasData);
+	// for colorcount < 8 we use the transparent color as color - otherwise we just add it.
+	var useTransParentColor = ColorCount<7 && transparentColor;
+
+	var ColorCube = CreateColorCube(CanvasData,useTransParentColor?transparentColor:undefined);
+
 	var ColorCubeInfo = TrimColorCube(ColorCube, { RedMin: 0, RedMax: 255, GreenMin: 0, GreenMax: 255, BlueMin: 0, BlueMax: 255 });
 
 	Colors = new Array();
 
-	QuantizeRecursive(ColorCube, ColorCubeInfo, Colors, 0, MaxRecursionDepth)
+	QuantizeRecursive(ColorCube, ColorCubeInfo, Colors, 0, MaxRecursionDepth);
+
+	if (transparentColor && !useTransParentColor){
+		// this is probably not really correct but well ...
+		Colors.shift();
+	}
 
 	Colors.sort(function (Color1, Color2) { return (Color1.Red * 0.21 + Color1.Green * 0.72 + Color1.Blue * 0.07) - (Color2.Red * 0.21 + Color2.Green * 0.72 + Color2.Blue * 0.07) });
 
 	var ShadesPerColor = 1 << BitsPerColor;
 
-	for(var Index = 0; Index < Colors.length; Index++)
-	{
+	for(var Index = 0; Index < Colors.length; Index++){
 		Colors[Index].Red = Math.floor(Math.floor(Colors[Index].Red * ShadesPerColor / 256.0) * (255.0 / (ShadesPerColor - 1.0)));
 		Colors[Index].Green = Math.floor(Math.floor(Colors[Index].Green * ShadesPerColor / 256.0) * (255.0 / (ShadesPerColor - 1.0)));
 		Colors[Index].Blue = Math.floor(Math.floor(Colors[Index].Blue * ShadesPerColor / 256.0) * (255.0 / (ShadesPerColor - 1.0)));
 	}
 
-	for(var Index = Colors.length; Index < ColorCount; Index++)
-		Colors.push({ Red: 0, Green: 0, Blue: 0 });
+	for(var Index = Colors.length; Index < ColorCount; Index++) Colors.push({ Red: 0, Green: 0, Blue: 0 });
+
+	if (useTransParentColor){
+		// force exact match and move in front
+		var d=100000000;
+		var i = -1;
+		for(var Index = 0; Index < Colors.length; Index++){
+			var distance =
+				Math.abs(Colors[Index].Red - transparentColor[0]) +
+				Math.abs(Colors[Index].Green - transparentColor[1]) +
+				Math.abs(Colors[Index].Blue - transparentColor[2]);
+			if (distance<d){
+				d=distance;
+				i=Index;
+			}
+		}
+		if (i>=0){
+			Colors.splice(i,1);
+			Colors.unshift({Red: transparentColor[0], Green: transparentColor[1], Blue: transparentColor[2]})
+		}
+	}
 
 	self.postMessage({ LineIndex: LineIndex, Colors: Colors });
 
 	self.close();
 };
 
-function CreateColorCube(CanvasData)
+function CreateColorCube(CanvasData,transparentColor)
 {
 	var TotalColorCount = 0;
 	var ColorCube = {}; // Note: an associative array is actually an object.
@@ -49,6 +77,13 @@ function CreateColorCube(CanvasData)
 			var Blue = CanvasData.data[PixelIndex + 2];
 			var Alpha = CanvasData.data[PixelIndex + 3];
 
+			//console.error(Alpha);
+			if (transparentColor && Alpha<100){
+				Red = transparentColor[0];
+				Green = transparentColor[1];
+				Blue = transparentColor[2];
+				Alpha = 255;
+			};
 			//var BitsPerColor = 4;
 			//var ShadesPerColor = 1 << BitsPerColor;
 
@@ -58,12 +93,9 @@ function CreateColorCube(CanvasData)
 
 			if(Alpha == 255)
 			{
-				if(ColorCube[Red * 256 * 256 + Green * 256 + Blue])
-				{
+				if(ColorCube[Red * 256 * 256 + Green * 256 + Blue]){
 					ColorCube[Red * 256 * 256 + Green * 256 + Blue]++;
-				}
-				else
-				{
+				}else{
 					ColorCube[Red * 256 * 256 + Green * 256 + Blue] = 1;
 					TotalColorCount++;
 				}

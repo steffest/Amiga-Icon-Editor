@@ -1,6 +1,5 @@
 #previews{
-    top: 56px;
-    left: 544px;
+
 }
 
 #previews .panel{
@@ -60,4 +59,9 @@
 #previews .panel .button.minus{
     left: 36px;
     line-height: 12px;
+}
+
+#fullpreview{
+    top: 628px;
+    left: 64px;
 }

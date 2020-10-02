@@ -40,6 +40,7 @@ var FetchService = (function() {
 			method: "POST",
 			url : url,
 			data: data,
+			datatype: "json",
 			success: function(data){next(data)},
 			error: function(xhr){next(undefined,xhr)}
 		})

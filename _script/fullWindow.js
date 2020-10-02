@@ -1,4 +1,4 @@
-var PreviewWindow = function(backgroundColor){
+var FullWindow = function(backgroundColor){
 	var me = {};
 	
 	var container;
@@ -6,8 +6,8 @@ var PreviewWindow = function(backgroundColor){
 	var frame;
 	var plus, minus;
 	
-	var canvasWidth = 300;
-	var canvasHeight= 170;
+	var canvasWidth = 500;
+	var canvasHeight= 400;
 	
 	backgroundColor = backgroundColor || "rgb(192,192,192)";
 	
@@ -25,14 +25,8 @@ var PreviewWindow = function(backgroundColor){
 	var zoomIndex = 0;
 	
 	me.init = function(){
-		//console.error("init preview");
-		
-		var img = new Image();
-		img.className = "frame";
-		img.src = "_img/frame.png";
-		
-		
-		container = $div("panel");
+
+		container = $div("panelfull");
 		
 		canvas = document.createElement("canvas");
 		canvas.width = canvasWidth;
@@ -52,20 +46,13 @@ var PreviewWindow = function(backgroundColor){
 			setZoom();
 		};
 		
-		var parent = document.getElementById("previews");
+		var parent = document.getElementById("fullpreview");
 		if (!parent){
-			parent=UI.createPanel("Previews","","previews");
-			UI.addPanelToLayout(parent,{
-				name: "Previews",
-				position: "left",
-				resize: "vertical",
-				width: 320,
-				order: 4
-			});
+			parent=UI.createPanel("fullpreview","","fullpreview");
+			UI.mainContainer.appendChild(parent);
 		}
 		
 		container.appendChild(canvas);
-		container.appendChild(img);
 		container.appendChild(plus);
 		container.appendChild(minus);
 		
@@ -89,12 +76,7 @@ var PreviewWindow = function(backgroundColor){
 		var icon = IconEditor.getCurrentIconState();
 		
 		if (icon && icon.processedCanvas){
-			for (var i = 0; i<8 ; i++){
-				var x = 32 + (i%4)*(64);
-				var y = 32 + Math.floor(i/4) * (64);
-				
-				ctx.drawImage(icon.processedCanvas,x,y);
-			}
+			ctx.drawImage(icon.processedCanvas,0,0);
 		}
 	};
 	

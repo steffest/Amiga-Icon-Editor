@@ -22,7 +22,7 @@ var IconEditor = function(){
 	var cursor;
 	var cursorMark;
 	var drawColor = "black"; 
-	var backgroundColor = "black"; 
+	var backgroundColor = [192,192,192];
 	
 	var iconWidth = 48;
 	var iconHeight = 48;
@@ -89,7 +89,13 @@ var IconEditor = function(){
 
 
 		iconEditorPanel = UI.createPanel("Icon Editor",[infoPanel,container],'iconeditor');
-		UI.mainContainer.appendChild(iconEditorPanel);
+		UI.addPanelToLayout(iconEditorPanel,{
+			name: "IconEditor",
+			position: "left",
+			resize: "vertical",
+			width: 480,
+			order: 3
+		});
 		
 		overlayCanvas.onmousedown = function(e){
 
@@ -187,7 +193,7 @@ var IconEditor = function(){
 			var point = getCursorPosition(paletteCanvas,e);
 			var pixel = paletteCtx.getImageData(point.x, point.y, 1, 1).data;
 			if (isRight){
-				backgroundColor = "rgb(" + pixel[0] +"," + pixel[1] +"," + pixel[2] +")";
+				backgroundColor = [pixel[0],pixel[1],pixel[2]];
 				console.log("set backGroundcolor to " + backgroundColor);
 				EventBus.trigger(EVENT.backgroundColorChanged);
 			}else{
@@ -212,6 +218,10 @@ var IconEditor = function(){
 			activeState = 1;
 		}
 		me.drawIcon();
+	};
+
+	me.toggleState = function(){
+		me.setState(activeState===1);
 	};
 
 	me.editIcon = function(_canvas){
@@ -293,8 +303,8 @@ var IconEditor = function(){
 		return drawColor;
 	};
 
-	me.getBackgroundColor = function(){
-		return backgroundColor;
+	me.getBackgroundColor = function(asString){
+		return asString ? ("rgb(" + backgroundColor.join(",") + ")"):backgroundColor;
 	};
 	
 	me.setPalette = function(colors){
@@ -328,6 +338,12 @@ var IconEditor = function(){
 			paletteCtx.fillRect(x,y,w,h);
 		});
 	};
+
+	me.getPalette = function(){
+		var state = currentIcon["state" + activeState];
+		var colors = state.palette;
+		return colors;
+	};
 	
 	me.reduceColours = function(palette){
 		var state = currentIcon["state" + activeState];
@@ -335,6 +351,7 @@ var IconEditor = function(){
 		ctx.drawImage(state.originalCanvas,0,0);
 
 		if (palette){
+			console.warn(palette);
 			ImageProcessing.reduce(canvas,palette);
 		}else{
 			IconEditor.updateIcon();
@@ -364,7 +381,7 @@ var IconEditor = function(){
 	});
 	
 	EventBus.on(EVENT.backgroundColorChanged,function(){
-		iconEditorPanel.style.backgroundColor = me.getBackgroundColor();
+		iconEditorPanel.style.backgroundColor = me.getBackgroundColor(true);
 	});
 	
 	

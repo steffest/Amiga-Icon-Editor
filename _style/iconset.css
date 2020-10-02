@@ -1,9 +1,5 @@
 #iconset{
-    top: 56px;
-    left: 866px;
-    width: 300px;
-    height: 500px;
-    overflow: hidden;
+    overflow: auto;
 }
 
 #iconset .folder,
@@ -78,6 +74,10 @@
     bottom: 0;
     top: 19px;
     overflow: auto;
+}
+
+#iconset .window .inner.droptargetactive{
+    background-color: rgba(255, 255, 255, 0.2);
 }
 
 
@@ -179,4 +179,120 @@
     position: absolute;
     z-index: 1000;
     pointer-events: none;
+    opacity: 0;
+}
+
+#globalDragItem.visible{
+    opacity: 1;
+}
+
+.dragsource{
+    opacity: 1;
+    transition: opacity 0.3s ease-in-out;
+}
+
+.dragsource.dragging{
+    opacity: 0.2;
+    pointer-events: none;
+}
+
+.setfolder{
+    background-color: #b2bdca;
+    padding: 4px;
+    border-bottom: 1px solid #91979a;
+}
+
+.setfile{
+    height: 40px;
+    border-bottom: 1px solid #8a8686;
+    font-size: 12px;
+    position: relative;
+}
+
+.setfile div.row{
+    padding: 0;
+}
+
+.setfile div.row:first-of-type{
+    border-bottom: 1px solid #8a8686;
+}
+
+.setfile div.main{
+    vertical-align: top;
+    text-overflow: ellipsis;
+    font-size: 11px;
+    padding: 4px;
+    height: 40px;
+}
+
+.setfile div.main:hover{
+    cursor: pointer;
+    background-color: #cccccc;
+}
+
+.setfile.header{
+    background-color: #b6b6b6;
+    height: 20px;
+    font-size: 11px;
+}
+
+.setfile.header div.main{
+    height: 20px;
+}
+
+.setfile div.version{
+    display: inline-block;
+    width: 44px;
+    padding: 4px;
+    font-size: 10px;
+    height: 20px;
+    border-left: 1px solid #8a8686;
+    text-align: center;
+    cursor: pointer;
+}
+
+body.shift .setfile div.version.exporticon.ok,
+body.shift .setfile div.version.exporticon.nok{
+    box-shadow: inset 0 18px 0 0 rgba(17, 162, 197, 0.2);
+    position: relative;
+}
+
+body.shift .setfile div.version.exporticon.ok:hover,
+body.shift .setfile div.version.exporticon.nok:hover{
+    box-shadow: inset 0 18px 0 0 rgba(17, 162, 197, 0.4);
+}
+
+body.shift .setfile div.version.exporticon.ok:hover:before,
+body.shift .setfile div.version.exporticon.nok:hover:before{
+    content: "SAVE";
+    position: absolute;
+    color: #eef5fb;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 20px;
+    line-height: 19px;
+    border: 1px solid #4192c7;
+    box-shadow: 0 0 3px 1px #688f98;
+}
+
+.setfile div.version.ok{
+    box-shadow: inset 0 18px 0 0 rgba(152,217,161,0.5);
+}
+
+.setfile div.version.ok:hover{
+    box-shadow: inset 0 18px 0 0 rgba(167, 233, 177, 0.75);
+}
+
+.setfile div.version.nok{
+    box-shadow: inset 0 18px 0 0 rgba(255, 227, 12, 0.2);
+}
+.setfile div.version.nok:hover{
+    box-shadow: inset 0 18px 0 0 rgba(255, 235, 69, 0.4);
+}
+
+.setfile .exports{
+    position: absolute;
+    right: 0;
+    top: 0;
 }

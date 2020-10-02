@@ -33,16 +33,20 @@ var ImageProcessing = function(){
 		return dithering;
 	};
 	
-	me.setDithering = function(index){
+	me.setDithering = function(index,ignoreChange){
 		DitherPattern = dithering[index].pattern;
+
+		if (ignoreChange) return;
 		
 		if (ImageInfos && ImageInfos.colorCount){
 			IconEditor.reduceColours(ImageInfos.colorCount);
 		}
 	};
 	
-	me.setAlphaThreshold = function(threshold){
+	me.setAlphaThreshold = function(threshold,ignoreChange){
 		alphaThreshold = threshold;
+
+		if (ignoreChange) return;
 
 		if (ImageInfos && ImageInfos.colorCount){
 			IconEditor.reduceColours(ImageInfos.colorCount);
@@ -124,7 +128,6 @@ var ImageProcessing = function(){
 		}
 
 		Colors.sort(function (Color1, Color2) { return (SrgbToRgb(Color1.Red) * 0.21 + SrgbToRgb(Color1.Green) * 0.72 + SrgbToRgb(Color1.Blue) * 0.07) - (SrgbToRgb(Color2.Red) * 0.21 + SrgbToRgb(Color2.Green) * 0.72 + SrgbToRgb(Color2.Blue) * 0.07) });
-		
 		return Colors;
 	};
 	
@@ -529,7 +532,7 @@ var ImageProcessing = function(){
 						}
 					}
 
-					console.error(MatchingRed);
+					//console.error(MatchingRed);
 					Data.data[PixelIndex] = MatchingRed;
 					Data.data[PixelIndex + 1] = MatchingGreen;
 					Data.data[PixelIndex + 2] = MatchingBlue;
@@ -547,6 +550,9 @@ var ImageProcessing = function(){
 
 	function ProcessImage(colorCount, bitsPerColor, ditherPattern, Id) {
 		var Colors = [];
+		var useTransparentColor = true;
+
+		var transparentColor = useTransparentColor?IconEditor.getBackgroundColor():undefined;
 
 		if(colorCount == "Global") {
 			for(var Index = 0; Index < GlobalColors.length; Index++)
@@ -566,8 +572,12 @@ var ImageProcessing = function(){
 		}else{
 			if(!ImageInfos.Colors || ImageInfos.Colors.length > colorCount) {
 				if(colorCount == 2){
+					if (useTransparentColor){
+						Colors.push({ Red: transparentColor[0], Green: transparentColor[1], Blue: transparentColor[2] });
+					}else{
+						Colors.push({ Red: 255, Green: 255, Blue: 255 });
+					}
 					Colors.push({ Red: 0, Green: 0, Blue: 0 });
-					Colors.push({ Red: 255, Green: 255, Blue: 255 });
 
 					ImageInfos.QuantizedColors = Colors;
 
@@ -577,14 +587,14 @@ var ImageProcessing = function(){
 				}
 				else
 				{
+					if (useTransparentColor) colorCount--;
 					var MaxRecursionDepth = 1;
 
-					while(Math.pow(2, MaxRecursionDepth) < colorCount)
-						MaxRecursionDepth++;
+					while(Math.pow(2, MaxRecursionDepth) < colorCount) MaxRecursionDepth++;
 
 					var QuantizeWorker = new Worker("_script/quantize.js");
 
-					var QuantizeData = { LineIndex: 0, CanvasData: ImageInfos.canvas.getContext("2d").getImageData(0, 0, ImageInfos.canvas.width, ImageInfos.canvas.height), MaxRecursionDepth: MaxRecursionDepth, BitsPerColor: bitsPerColor, ColorCount: colorCount };
+					var QuantizeData = { LineIndex: 0, CanvasData: ImageInfos.canvas.getContext("2d").getImageData(0, 0, ImageInfos.canvas.width, ImageInfos.canvas.height), MaxRecursionDepth: MaxRecursionDepth, BitsPerColor: bitsPerColor, ColorCount: colorCount, transparentColor: transparentColor};
 
 					QuantizeWorker.addEventListener(
 						"message",
@@ -592,9 +602,14 @@ var ImageProcessing = function(){
 						{
 							ImageInfos.QuantizedColors = e.data.Colors;
 
+
 							console.error(ImageInfos.QuantizedColors);
 
 							RemapImage(ImageInfos.canvas, ImageInfos.QuantizedColors, ditherPattern);
+
+							if (useTransparentColor && colorCount>4){
+								ImageInfos.QuantizedColors.unshift({Red: transparentColor[0], Green: transparentColor[1], Blue: transparentColor[2]})
+							}
 
 							UpdateImageWindow(Id);
 						},
@@ -650,7 +665,7 @@ var ImageProcessing = function(){
 
 
 	EventBus.on(EVENT.backgroundColorChanged,function(){
-		mattingColor = IconEditor.getBackgroundColor();
+		mattingColor = IconEditor.getBackgroundColor(true);
 	});
 	
 	return me;

@@ -158,6 +158,6 @@ select{
 
 .maincontainer{
     position: relative;
-    width: 920px;
+    width: auto;
     margin: auto;
 }

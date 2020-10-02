@@ -2,9 +2,12 @@ var UI = function(){
 	var me = {};
 	
 	var currentDragItem;
+	var currentDropTarget;
 	var globalDragItem;
+	var globalDragSource;
 	var currentResizeItem;
 	var dragpos1 = 0, dragpos2 = 0, dragpos3 = 0, dragpos4 = 0;
+	var layout=[];
 
 	me.init = function(){
 		me.mainContainer = $div("maincontainer");
@@ -19,9 +22,7 @@ var UI = function(){
 		document.body.addEventListener("mouseup",function(){
 			currentDragItem = undefined;
 			currentResizeItem = undefined;
-			if (globalDragItem){
-				//globalDragItem.remove();
-			}
+			if (globalDragItem) me.handleDrop();
 			Main.isMouseDown = false;
 			document.body.classList.remove("mousedown");
 		});
@@ -37,6 +38,8 @@ var UI = function(){
 				dragpos4 = e.clientY;
 				currentDragItem.style.top = (currentDragItem.offsetTop - dragpos2) + "px";
 				currentDragItem.style.left = (currentDragItem.offsetLeft - dragpos1) + "px";
+
+				if (globalDragItem) me.handleDrag(e);
 			}
 
 			if (currentResizeItem){
@@ -98,6 +101,9 @@ var UI = function(){
 							button.action.indexOf(".")>0?Main[button.action.split(".")[1]]():ImageProcessing[button.action]();
 						}else{
 							if (button.palette){
+								if (button.palette === 1){
+									button.palette = IconEditor.getCurrentIcon().state1.palette
+								}
 								IconEditor.reduceColours(button.palette);
 							}else{
 								IconEditor.reduceColours(button.colours);
@@ -147,9 +153,13 @@ var UI = function(){
 				var pos = getElementPosition(item);
 				globalDragItem.style.left = pos.left + "px";
 				globalDragItem.style.top = pos.top + "px";
+				globalDragItem.startX = pos.left;
+				globalDragItem.startY = pos.top;
 
 				document.body.appendChild(globalDragItem);
 				currentDragItem = globalDragItem;
+				globalDragSource = item;
+				globalDragSource.classList.add("dragsource")
 			}
 
 			e = e || window.event;
@@ -157,6 +167,59 @@ var UI = function(){
 			dragpos3 = e.clientX;
 			dragpos4 = e.clientY;
 		}
+
+	};
+
+	me.handleDrag = function(e){
+		if (currentDropTarget && currentDropTarget.classList.contains("droptargetactive")){
+			currentDropTarget.classList.remove("droptargetactive");
+		}
+		currentDropTarget = e.target;
+		if (currentDropTarget.classList.contains("droptarget")){
+			currentDropTarget.classList.add("droptargetactive");
+		}
+
+		var deltaX =  globalDragItem.offsetLeft - globalDragItem.startX;
+		var deltaY =  globalDragItem.offsetTop - globalDragItem.startY;
+
+		if (Math.abs(deltaX)>5 || Math.abs(deltaY)>5){
+			globalDragItem.classList.add("visible");
+			if (globalDragSource) globalDragSource.classList.add("dragging")
+		}
+
+	};
+
+	me.handleDrop = function(){
+		var deltaX =  globalDragItem.offsetLeft - globalDragItem.startX;
+		var deltaY =  globalDragItem.offsetTop - globalDragItem.startY;
+
+		if (currentDropTarget){
+			currentDropTarget.classList.remove("droptargetactive");
+			if (globalDragSource){
+
+				if (currentDropTarget.contains(globalDragSource)){
+					// moved in same parent
+					globalDragSource.style.left = (globalDragSource.offsetLeft + deltaX) + "px";
+					globalDragSource.style.top = (globalDragSource.offsetTop + deltaY) + "px";
+				}else{
+					// dragged to another parent
+					if (currentDropTarget.ondrop) (currentDropTarget.ondrop(globalDragSource,globalDragItem));
+				}
+			}
+
+		}
+
+
+		if (globalDragSource){
+			globalDragSource.classList.remove("dragsource");
+			globalDragSource.classList.remove("dragging");
+		}
+
+		globalDragItem.remove();
+		currentDropTarget = undefined;
+		globalDragSource = undefined;
+
+
 
 	};
 
@@ -184,6 +247,52 @@ var UI = function(){
 		}
 
 	};
+
+	me.addPanelToLayout = function(panel,config){
+		if (me.mainContainer){
+			me.mainContainer.appendChild(panel);
+			config = config||{};
+			layout.push({
+				panel: panel,
+				config: config,
+				order: config.order || 0
+			});
+			me.updateLayout();
+		}else{
+			console.warn("Warning ... no container to add panel")
+		}
+
+	};
+
+
+	me.updateLayout = function(){
+		var leftMargin= AmiBase.isAmiBased ? 0 :4;
+		var topMargin= AmiBase.isAmiBased ? 0 : 56;
+		var rowHeight=570;
+		var padding=0;
+
+		var left = leftMargin;
+		layout.sort(function(a,b){
+			if (a.order>b.order) return 1;
+			if (a.order<b.order) return -1;
+			return 0;
+		});
+
+		layout.forEach((item)=>{
+			var panel = item.panel;
+			var config = item.config;
+			//console.log(config.name,item.order);
+			if (config.position === "left"){
+				panel.style.top = topMargin + "px";
+				panel.style.left = left + "px";
+				panel.style.width = config.width + "px";
+				panel.style.height = rowHeight + "px";
+				left += config.width + padding;
+			}
+		})
+	};
+
+
 	
 	
 	return me;
