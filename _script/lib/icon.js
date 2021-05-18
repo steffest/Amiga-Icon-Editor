@@ -2,7 +2,7 @@
 
 	MIT License
 
-	Copyright (c) 2019 Steffest - dev@stef.be
+	Copyright (c) 2019-2021 Steffest - dev@stef.be
 
 	Permission is hereby granted, free of charge, to any person obtaining a copy
 	of this software and associated documentation files (the "Software"), to deal
@@ -577,7 +577,6 @@ var Icon = function(){
 			file.writeString("FORM");
 			file.writeDWord(icon.colorIcon.byteSize);
 			file.writeString("ICON");
-
 			file.writeString("FACE");
 			file.writeDWord(6);
 			file.writeUbyte(icon.colorIcon.width-1);
@@ -588,14 +587,10 @@ var Icon = function(){
 
 			writeIconState(icon.colorIcon.states[0]);
 			if (icon.colorIcon.states[1]) writeIconState(icon.colorIcon.states[1]);
-
-
 		}else{
 			console.log("skipping Coloricon");
 		}
-
 		return file.buffer;
-
     };
 
     function generateColorIconData(colorIcon){
@@ -720,6 +715,7 @@ var Icon = function(){
 					img.flags = file.readUbyte();
 					img.aspectRatio = file.readUbyte(); //upper 4 bits:x aspect, lower 4 bits: y aspect
 					img.MaxPaletteSize = file.readWord();
+					console.log("Icon is " + img.width + "x" + img.height);
 					break;
 				case "IMAG":
 					var endIndex = file.index + chunk.size;
@@ -774,6 +770,8 @@ var Icon = function(){
 						file.goto(paletteDataOffset);
 						var rgb = [];
 
+						var bitsPerColorByte = 8;
+
 						if (state.paletteCompression){
 							var max = (state.paletteSize-1) * 8;
 							var bitIndex = 0;
@@ -783,14 +781,14 @@ var Icon = function(){
 								bitIndex += 8;
 
 								if (b > 128) {
-									var b2 = file.readBits(state.depth,bitIndex,paletteDataOffset);
-									bitIndex += state.depth;
+									var b2 = file.readBits(bitsPerColorByte,bitIndex,paletteDataOffset);
+									bitIndex += bitsPerColorByte;
 									for (var k = 0; k < 257 - b; k++) rgb.push(b2);
 								}
 								if (b < 128) {
 									for (k = 0; k <= b; k++){
-										rgb.push(file.readBits(state.depth,bitIndex,paletteDataOffset));
-										bitIndex += state.depth;
+										rgb.push(file.readBits(bitsPerColorByte,bitIndex,paletteDataOffset));
+										bitIndex += bitsPerColorByte;
 									}
 								}
 							}
@@ -868,7 +866,6 @@ var Icon = function(){
 					console.log("unhandled IFF chunk: " + chunk.name);
 					break;
 			}
-
 		}
 
 		return img;
